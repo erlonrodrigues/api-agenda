@@ -1,0 +1,74 @@
+services:
+  db-manager:
+    build:
+      context: db/postgresql/
+      dockerfile: Dockerfile
+    image: img-db-manager-agenda
+    container_name: sgbd-agenda
+    restart: unless-stopped    
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB não está definida}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER não está definida}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD não está definida}
+    ports:
+      - "${POSTGRES_PORT:?POSTGRES_PORT não está definida}:5432" # porta do PostgreSQL (publica a porta do container em 0.0.0.0, ou seja, sem restrição de acesso externo)
+      #- "127.0.0.1:${POSTGRES_PORT:?POSTGRES_PORT não está definida}:5432" # porta do PostgreSQL (publica a porta do container em 127.0.0.1, ou seja, restringe o acesso ao container a partir da rede local - somente localhost)
+      # No ambiente de produção não informar a porta, pois o banco de dados será acessado apenas pelo nome do container do PostgreSQL
+    volumes:
+      - db_manager_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - agenda-network
+
+  db-client:
+    profiles: 
+      - dev
+    build:
+      context: db/pgadmin/
+      dockerfile: Dockerfile
+    image: img-db-client-agenda
+    container_name: pgadmin
+    restart: unless-stopped
+    depends_on:
+      db-manager:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?PGADMIN_DEFAULT_EMAIL não está definida}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?PGADMIN_DEFAULT_PASSWORD não está definida}
+      PGADMIN_CONFIG_SERVER_MODE: "False" # false para que o pgadmin seja usado como cliente, true para que seja usado como servidor
+    ports:
+      - "${PGADMIN_PORT:?PGADMIN_PORT não está definida}:80" # porta da interface web do PGAdmin (publica a porta do container em 0.0.0.0, ou seja, sem restrição de acesso externo)
+      #- "127.0.0.1:${PGADMIN_PORT:?PGADMIN_PORT não está definida}:80" # porta da interface web do PGAdmin (publica a porta do container em 127.0.0.1, ou seja, restringe o acesso ao container a partir da rede local - somente localhost)      
+      # No ambiente de produção não informar a porta, pois o pgAdmin será acessado apenas pelo nome do container do pgAdmin
+    volumes:
+      - db_client_data:/var/lib/pgadmin
+    networks:
+      - agenda-network
+
+volumes:
+  db_manager_data:
+  db_client_data:
+
+networks:
+  agenda-network:
+    driver: bridge
+
+# INSTRUÇÕES DOCKER COMPOSE
+#--------------------------------
+# Comando para iniciar os serviços do Docker Compose:
+# 
+# Ambiente de produção (somente o banco de dados):
+# docker compose up -d
+#
+# Ambiente de desenvolvimento (banco de dados + pgAdmin)
+# docker compose --profile dev up -d
+#
+# Comando para parar apenas o banco de dados (ambiente de produção):
+# docker compose down
+
+# Comando para parar o banco de dados e o pgAdmin (ambiente de desenvolvimento):
+# docker compose --profile dev down

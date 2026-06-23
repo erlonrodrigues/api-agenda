@@ -10,4 +10,33 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
+
+model Users {
+
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255) 
+  cpf       String   @db.VarChar(11) @unique
+  loginId   Int      @unique // garante o relacionamento 1:1 (um login pertence a apenas um usuário)
+  login     Login    @relation(fields: [loginId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users") // garante que a tabela se chame "users" no banco de dados
+}
+
+
+// tabela de login
+model Login {
+
+  id        Int      @id @default(autoincrement())
+  email     String   @db.VarChar(127) @unique
+  password  String   @db.VarChar(127)
+  user      Users?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("login") 
+}
+

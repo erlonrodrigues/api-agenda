@@ -1,0 +1,17 @@
+services:
+  app:
+    # Usando uma imagem oficial do Devcontainers para Node/TypeScript
+    image: mcr.microsoft.com/devcontainers/typescript-node:22
+    volumes:
+      # Monta o diretório do projeto no workspace do container
+      - ../:/workspace:cached
+    command: sleep infinity
+    networks:
+      - agenda-network
+    depends_on:
+      db-manager:
+        condition: service_healthy
+
+  db-client:
+    # Sobrescreve o profile para iniciar o pgAdmin junto com o ambiente de dev por padrão
+    profiles: []
